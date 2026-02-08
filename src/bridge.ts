@@ -142,8 +142,24 @@ export class BridgeServer {
   }
 
   start(): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      const onWssError = () => { /* swallow WSS re-emit of HTTP server error */ };
+      this.wss.once('error', onWssError);
+
+      this.server.once('error', (err: NodeJS.ErrnoException) => {
+        if (err.code === 'EADDRINUSE') {
+          reject(new Error(
+            `Port ${this.port} is already in use. A previous FigJam MCP server instance may still be running. ` +
+            `To fix this, run: lsof -ti :${this.port} | xargs kill -9 — or set the BRIDGE_PORT environment variable to use a different port.`
+          ));
+        } else {
+          reject(err);
+        }
+      });
+
       this.server.listen(this.port, () => {
+        this.server.removeListener('error', () => {});
+        this.wss.removeListener('error', onWssError);
         console.error(`[bridge] Bridge server listening on port ${this.port}`);
         resolve();
       });

@@ -102,6 +102,12 @@ server.resource(
 - Use \`label\` for relationship annotations (e.g. "REST API", "publishes", "reads from")
 - Prefer labels on connectors instead of placing stickies next to arrows
 
+## Text Nodes (create_text)
+- Use VERY SPARINGLY — prefer connector labels and shape text instead
+- NEVER place a text node on top of or overlapping a shape or connector
+- If you need a standalone annotation, use a sticky instead (fixed size, won't overlap)
+- Text nodes are best for board titles or isolated notes far from diagram elements
+
 ## Stickies
 - Use SPARINGLY — only for annotations, tradeoffs, or callouts
 - Place OUTSIDE the main diagram flow to avoid overlap
@@ -164,11 +170,14 @@ Use labels instead of stickies for annotations on connections.
 ## Step 6: Add annotations (sparingly)
 Only add stickies for important callouts (tradeoffs, notes, API signatures).
 Place them OUTSIDE the main diagram flow.
+**AVOID standalone text nodes (create_text)** — use connector labels or shape text instead.
+If you must use a text node, place it far from any shapes/connectors to avoid overlap.
 
 ## Step 7: Validate layout (MANDATORY)
 Call validate_layout to check for:
 - Text truncated in shapes (resize the shape if so)
-- Overlapping elements (reposition to fix)
+- Overlapping elements including text nodes (reposition to fix)
+- Connectors routing through shapes (reposition shapes so connector path is clear)
 - Elements bleeding outside sections (resize section or move element)
 - Tight connectors (< 80px between connected elements — move elements apart)
 Keep calling validate_layout until zero issues remain.

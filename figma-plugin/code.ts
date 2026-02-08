@@ -240,8 +240,8 @@ async function handleValidateLayout(): Promise<any> {
       }
     }
 
-    // Collect bounding box (skip connectors and text labels)
-    if (node.type !== 'CONNECTOR' && node.type !== 'TEXT') {
+    // Collect bounding box (skip connectors only — include TEXT nodes for overlap detection)
+    if (node.type !== 'CONNECTOR') {
       boxes.push({
         id: node.id,
         name: node.name,
@@ -345,6 +345,62 @@ async function handleValidateLayout(): Promise<any> {
         details: 'Only ' + Math.round(effectiveGap) + 'px gap ' + moveDir + ' between "' + startNode.name + '" and "' + endNode.name + '" — connector arrow/label compressed',
         suggestion: 'Move ' + endNode.id + ' at least ' + Math.round(moveAmount) + 'px ' + moveDir + ' to create ' + MIN_CONNECTOR_GAP + 'px gap',
       });
+    }
+  }
+
+  // Check for connectors routing through intermediate shapes
+  // For each connector, check if any non-endpoint shape's bounding box
+  // intersects the straight line between the two connected elements' centers
+  for (var ci2 = 0; ci2 < allNodes.length; ci2++) {
+    var cn2 = allNodes[ci2];
+    if (cn2.type !== 'CONNECTOR') continue;
+    var conn2 = cn2 as ConnectorNode;
+    var s2 = conn2.connectorStart;
+    var e2 = conn2.connectorEnd;
+    if (!('endpointNodeId' in s2) || !('endpointNodeId' in e2)) continue;
+
+    var sn2 = findNodeById(s2.endpointNodeId);
+    var en2 = findNodeById(e2.endpointNodeId);
+    if (!sn2 || !en2) continue;
+
+    // Line from center of start node to center of end node
+    var lx1 = sn2.x + sn2.width / 2;
+    var ly1 = sn2.y + sn2.height / 2;
+    var lx2 = en2.x + en2.width / 2;
+    var ly2 = en2.y + en2.height / 2;
+
+    for (var bi = 0; bi < boxes.length; bi++) {
+      var bx = boxes[bi];
+      if (bx.nodeType === 'SECTION' || bx.nodeType === 'TEXT') continue;
+      if (bx.id === sn2.id || bx.id === en2.id) continue;
+
+      // Check if the line segment intersects the bounding box of this shape
+      // Use Liang-Barsky line clipping algorithm
+      var dx = lx2 - lx1;
+      var dy = ly2 - ly1;
+      var p = [-dx, dx, -dy, dy];
+      var q = [lx1 - bx.x, bx.x + bx.w - lx1, ly1 - bx.y, bx.y + bx.h - ly1];
+      var u1 = 0, u2 = 1;
+      var intersects = true;
+      for (var k = 0; k < 4; k++) {
+        if (p[k] === 0) {
+          if (q[k] < 0) { intersects = false; break; }
+        } else {
+          var t = q[k] / p[k];
+          if (p[k] < 0) { if (t > u1) u1 = t; }
+          else { if (t < u2) u2 = t; }
+        }
+      }
+      if (intersects && u1 <= u2) {
+        var connLabel2 = conn2.text.characters || '(unlabeled)';
+        issues.push({
+          type: 'connector_through_shape',
+          elementId: conn2.id,
+          elementName: 'Connector: ' + connLabel2,
+          details: 'Connector between "' + sn2.name + '" and "' + en2.name + '" passes through "' + bx.name + '"',
+          suggestion: 'Move "' + bx.name + '" (' + bx.id + ') out of the connector path, or reposition "' + sn2.name + '" or "' + en2.name + '" so the connector routes around "' + bx.name + '"',
+        });
+      }
     }
   }
 
