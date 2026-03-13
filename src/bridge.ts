@@ -26,7 +26,7 @@ export class BridgeServer {
 
     this.app.get('/health', (_req, res) => {
       res.json({
-        status: 'healthy',
+        status: 'ok',
         pluginConnected: this.isPluginConnected(),
         pendingCommands: this.pendingCommands.size,
       });
