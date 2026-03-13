@@ -63,6 +63,7 @@ See [MCP Client Configuration](#mcp-client-configuration) below.
 | `distribute_elements` | Distribute elements with even spacing |
 | `clear_board` | Remove all elements from the board |
 | `get_board_info` | Get board metadata (page name, element counts) |
+| `export_board` | Export the board as a PNG or SVG image |
 
 ## MCP Resources & Prompts
 
