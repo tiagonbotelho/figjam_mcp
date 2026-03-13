@@ -45,9 +45,10 @@ async function main() {
 
   // 2. Health check (no plugin connected)
   console.log('\nTest: Health check without plugin');
+  await sleep(100); // let Express settle before first request
   const healthRes = await fetch(`http://localhost:${BRIDGE_PORT}/health`);
   const health = await healthRes.json();
-  assert(health.status === 'healthy', 'Health status is healthy');
+  assert(health.status === 'ok', 'Health status is ok');
   assert(health.pluginConnected === false, 'Plugin not connected');
 
   // 3. Send command without plugin → should error
