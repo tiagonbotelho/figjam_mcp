@@ -64,6 +64,8 @@ See [MCP Client Configuration](#mcp-client-configuration) below.
 | `clear_board` | Remove all elements from the board |
 | `get_board_info` | Get board metadata (page name, element counts) |
 | `export_board` | Export the board as a PNG or SVG image |
+| `snapshot_board` | Capture entire board state as a portable JSON snapshot |
+| `restore_snapshot` | Restore a board from a previously captured snapshot |
 
 ## MCP Resources & Prompts
 

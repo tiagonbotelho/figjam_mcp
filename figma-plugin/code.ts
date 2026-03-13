@@ -673,6 +673,266 @@ async function handleGetBoardInfo(): Promise<any> {
   };
 }
 
+// ── Snapshot Helpers ───────────────────────────────────────────────────
+
+function rgbToHex(color: RGB): string {
+  var r = Math.round(color.r * 255).toString(16).padStart(2, '0');
+  var g = Math.round(color.g * 255).toString(16).padStart(2, '0');
+  var b = Math.round(color.b * 255).toString(16).padStart(2, '0');
+  return '#' + r + g + b;
+}
+
+function getFillColor(node: SceneNode): string | undefined {
+  if (!('fills' in node)) return undefined;
+  var fills = (node as GeometryMixin & SceneNode).fills;
+  if (!Array.isArray(fills) || fills.length === 0) return undefined;
+  var fill = fills[0];
+  if (fill.type !== 'SOLID') return undefined;
+  var hex = rgbToHex(fill.color).toUpperCase();
+  // Reverse-lookup named color
+  for (var name in FIGJAM_COLORS) {
+    if (FIGJAM_COLORS[name].toUpperCase() === hex) return name;
+  }
+  return hex;
+}
+
+function getStrokeColor(node: SceneNode): string | undefined {
+  if (!('strokes' in node)) return undefined;
+  var strokes = (node as MinimalStrokesMixin & SceneNode).strokes;
+  if (!Array.isArray(strokes) || strokes.length === 0) return undefined;
+  var stroke = strokes[0];
+  if (stroke.type !== 'SOLID') return undefined;
+  var hex = rgbToHex(stroke.color).toUpperCase();
+  for (var name in FIGJAM_COLORS) {
+    if (FIGJAM_COLORS[name].toUpperCase() === hex) return name;
+  }
+  return hex;
+}
+
+function serializeNodeForSnapshot(node: SceneNode): Record<string, any> | null {
+  var base: Record<string, any> = {
+    id: node.id,
+    type: node.type,
+    x: node.x,
+    y: node.y,
+    width: node.width,
+    height: node.height,
+  };
+
+  switch (node.type) {
+    case 'STICKY': {
+      var sticky = node as StickyNode;
+      base.text = sticky.text.characters;
+      base.color = getFillColor(node);
+      base.isWideWidth = sticky.isWideWidth || false;
+      break;
+    }
+    case 'SHAPE_WITH_TEXT': {
+      var shape = node as ShapeWithTextNode;
+      base.shapeType = shape.shapeType;
+      base.text = shape.text.characters;
+      base.color = getFillColor(node);
+      break;
+    }
+    case 'TEXT': {
+      var textNode = node as TextNode;
+      base.text = textNode.characters;
+      var fs = textNode.fontSize;
+      base.fontSize = typeof fs === 'number' ? fs : 16;
+      break;
+    }
+    case 'CONNECTOR': {
+      var conn = node as ConnectorNode;
+      var startEnd = conn.connectorStart;
+      var endEnd = conn.connectorEnd;
+      if (!('endpointNodeId' in startEnd) || !('endpointNodeId' in endEnd)) return null;
+      base.startElementId = startEnd.endpointNodeId;
+      base.endElementId = endEnd.endpointNodeId;
+      base.label = conn.text.characters || undefined;
+      base.strokeColor = getStrokeColor(node);
+      break;
+    }
+    case 'SECTION': {
+      var sec = node as SectionNode;
+      base.name = sec.name;
+      break;
+    }
+    default:
+      return null;
+  }
+
+  return base;
+}
+
+async function handleSnapshotBoard(): Promise<any> {
+  var children = figma.currentPage.children;
+  var sections: any[] = [];
+  var shapes: any[] = [];
+  var stickies: any[] = [];
+  var textNodes: any[] = [];
+  var connectors: any[] = [];
+
+  for (var i = 0; i < children.length; i++) {
+    var data = serializeNodeForSnapshot(children[i]);
+    if (!data) continue;
+
+    switch (data.type) {
+      case 'SECTION':    sections.push(data);   break;
+      case 'SHAPE_WITH_TEXT': shapes.push(data); break;
+      case 'STICKY':     stickies.push(data);   break;
+      case 'TEXT':        textNodes.push(data);  break;
+      case 'CONNECTOR':  connectors.push(data);  break;
+    }
+  }
+
+  return {
+    version: 1,
+    pageName: figma.currentPage.name,
+    createdAt: new Date().toISOString(),
+    elements: {
+      sections: sections,
+      shapes: shapes,
+      stickies: stickies,
+      textNodes: textNodes,
+      connectors: connectors,
+    },
+    totalCount: sections.length + shapes.length + stickies.length + textNodes.length + connectors.length,
+  };
+}
+
+async function handleRestoreSnapshot(params: Record<string, any>): Promise<any> {
+  var snapshot = params.snapshot;
+  if (!snapshot || !snapshot.elements) throw new Error('Invalid snapshot: missing elements');
+
+  // Clear the board first
+  var children = figma.currentPage.children;
+  for (var i = children.length - 1; i >= 0; i--) {
+    children[i].remove();
+  }
+
+  var idMap: Record<string, string> = {};
+  var created = 0;
+  var errors: string[] = [];
+
+  // 1. Recreate sections
+  var sections = snapshot.elements.sections || [];
+  for (var i = 0; i < sections.length; i++) {
+    try {
+      var sData = sections[i];
+      var sec = figma.createSection();
+      sec.name = sData.name || 'Section';
+      sec.x = sData.x ?? 0;
+      sec.y = sData.y ?? 0;
+      sec.resizeWithoutConstraints(sData.width ?? 600, sData.height ?? 400);
+      idMap[sData.id] = sec.id;
+      created++;
+    } catch (e: any) {
+      errors.push('section: ' + (e.message || String(e)));
+    }
+  }
+
+  // 2. Recreate shapes
+  var shapes = snapshot.elements.shapes || [];
+  for (var i = 0; i < shapes.length; i++) {
+    try {
+      var shData = shapes[i];
+      var shape = figma.createShapeWithText();
+      shape.shapeType = shData.shapeType || 'ROUNDED_RECTANGLE';
+      shape.x = shData.x ?? 0;
+      shape.y = shData.y ?? 0;
+      shape.resize(shData.width ?? 200, shData.height ?? 100);
+      if (shData.text) {
+        await figma.loadFontAsync(shape.text.fontName as FontName);
+        shape.text.characters = shData.text;
+      }
+      if (shData.color) {
+        shape.fills = [{ type: 'SOLID', color: resolveColor(shData.color) }];
+      }
+      idMap[shData.id] = shape.id;
+      created++;
+    } catch (e: any) {
+      errors.push('shape: ' + (e.message || String(e)));
+    }
+  }
+
+  // 3. Recreate stickies
+  var stickies = snapshot.elements.stickies || [];
+  for (var i = 0; i < stickies.length; i++) {
+    try {
+      var stData = stickies[i];
+      var sticky = figma.createSticky();
+      sticky.text.characters = stData.text || '';
+      sticky.x = stData.x ?? 0;
+      sticky.y = stData.y ?? 0;
+      if (stData.isWideWidth) sticky.isWideWidth = true;
+      if (stData.color) {
+        sticky.fills = [{ type: 'SOLID', color: resolveColor(stData.color) }];
+      }
+      idMap[stData.id] = sticky.id;
+      created++;
+    } catch (e: any) {
+      errors.push('sticky: ' + (e.message || String(e)));
+    }
+  }
+
+  // 4. Recreate text nodes
+  var textNodes = snapshot.elements.textNodes || [];
+  for (var i = 0; i < textNodes.length; i++) {
+    try {
+      var tData = textNodes[i];
+      var text = figma.createText();
+      await figma.loadFontAsync(text.fontName as FontName);
+      text.characters = tData.text || '';
+      text.x = tData.x ?? 0;
+      text.y = tData.y ?? 0;
+      text.fontSize = tData.fontSize ?? 16;
+      idMap[tData.id] = text.id;
+      created++;
+    } catch (e: any) {
+      errors.push('text: ' + (e.message || String(e)));
+    }
+  }
+
+  // 5. Recreate connectors (with ID remapping)
+  var connectors = snapshot.elements.connectors || [];
+  for (var i = 0; i < connectors.length; i++) {
+    try {
+      var cData = connectors[i];
+      var newStartId = idMap[cData.startElementId];
+      var newEndId = idMap[cData.endElementId];
+      if (!newStartId) throw new Error('Start element not found in snapshot: ' + cData.startElementId);
+      if (!newEndId) throw new Error('End element not found in snapshot: ' + cData.endElementId);
+
+      var startNode = findNodeById(newStartId);
+      var endNode = findNodeById(newEndId);
+      if (!startNode) throw new Error('Remapped start element not found: ' + newStartId);
+      if (!endNode) throw new Error('Remapped end element not found: ' + newEndId);
+
+      var connector = figma.createConnector();
+      connector.connectorStart = { endpointNodeId: startNode.id, magnet: 'AUTO' };
+      connector.connectorEnd = { endpointNodeId: endNode.id, magnet: 'AUTO' };
+      if (cData.label) {
+        await figma.loadFontAsync({ family: 'Inter', style: 'Medium' });
+        connector.text.characters = cData.label;
+      }
+      if (cData.strokeColor) {
+        connector.strokes = [{ type: 'SOLID', color: resolveColor(cData.strokeColor) }];
+      }
+      idMap[cData.id] = connector.id;
+      created++;
+    } catch (e: any) {
+      errors.push('connector: ' + (e.message || String(e)));
+    }
+  }
+
+  return {
+    restored: true,
+    createdCount: created,
+    idMap: idMap,
+    errors: errors.length > 0 ? errors : undefined,
+  };
+}
+
 // ── Color Presets ──────────────────────────────────────────────────────
 
 var FIGJAM_COLORS: Record<string, string> = {
@@ -766,6 +1026,12 @@ figma.ui.onmessage = async (msg: { type: string; command?: PluginCommand }) => {
         break;
       case 'get_board_info':
         data = await handleGetBoardInfo();
+        break;
+      case 'snapshot_board':
+        data = await handleSnapshotBoard();
+        break;
+      case 'restore_snapshot':
+        data = await handleRestoreSnapshot(params);
         break;
       default:
         throw new Error(`Unknown command type: ${type}`);

@@ -667,6 +667,76 @@ server.tool(
   }
 );
 
+// ── Tool: snapshot_board ─────────────────────────────────────────────
+server.tool(
+  'snapshot_board',
+  'Capture the entire FigJam board as a portable JSON snapshot. ' +
+  'Returns a structured object containing all elements (sections, shapes, stickies, text, connectors) ' +
+  'with full detail (positions, sizes, colors, text, connector endpoints). ' +
+  'Use this to save checkpoints while iterating on a diagram, or to copy a diagram to another board. ' +
+  'The snapshot can later be restored with the restore_snapshot tool.',
+  {},
+  async () => {
+    const res = await bridge.sendCommand('snapshot_board', {});
+    return {
+      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
+      isError: !res.success,
+    };
+  }
+);
+
+// ── Tool: restore_snapshot ───────────────────────────────────────────
+const snapshotElementSchema = z.object({
+  id: z.string(),
+  type: z.string(),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  text: z.string().optional(),
+  name: z.string().optional(),
+  color: z.string().optional(),
+  shapeType: z.string().optional(),
+  fontSize: z.number().optional(),
+  isWideWidth: z.boolean().optional(),
+  startElementId: z.string().optional(),
+  endElementId: z.string().optional(),
+  label: z.string().optional(),
+  strokeColor: z.string().optional(),
+});
+
+const snapshotSchema = z.object({
+  version: z.number().optional(),
+  pageName: z.string().optional(),
+  createdAt: z.string().optional(),
+  elements: z.object({
+    sections: z.array(snapshotElementSchema).optional(),
+    shapes: z.array(snapshotElementSchema).optional(),
+    stickies: z.array(snapshotElementSchema).optional(),
+    textNodes: z.array(snapshotElementSchema).optional(),
+    connectors: z.array(snapshotElementSchema).optional(),
+  }),
+  totalCount: z.number().optional(),
+});
+
+server.tool(
+  'restore_snapshot',
+  'Restore a FigJam board from a previously captured snapshot. ' +
+  'CLEARS the current board first, then recreates all elements from the snapshot data. ' +
+  'Old element IDs are remapped to new IDs — connectors are automatically re-wired. ' +
+  'Use with snapshot_board to implement checkpoint/restore workflows.',
+  {
+    snapshot: snapshotSchema.describe('A snapshot object previously returned by snapshot_board'),
+  },
+  async ({ snapshot }) => {
+    const res = await bridge.sendCommand('restore_snapshot', { snapshot });
+    return {
+      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
+      isError: !res.success,
+    };
+  }
+);
+
 // ── Start ────────────────────────────────────────────────────────────
 async function main() {
   await bridge.start();
