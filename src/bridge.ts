@@ -8,8 +8,8 @@ import {
   type CommandResolver,
   generateCommandId,
 } from './types.js';
-
-const COMMAND_TIMEOUT_MS = 15_000;
+import { COMMAND_TIMEOUT_MS, CONNECTION_DEFAULTS } from './config.js';
+import { logger } from './logger.js';
 
 export class BridgeServer {
   private app = express();
@@ -39,7 +39,7 @@ export class BridgeServer {
 
   private setupWebSocket(): void {
     this.wss.on('connection', (ws) => {
-      console.error('[bridge] FigJam plugin connected');
+      logger.bridge.info('FigJam plugin connected');
       this.pluginSocket = ws;
 
       ws.on('message', (data) => {
@@ -47,12 +47,12 @@ export class BridgeServer {
           const response: PluginResponse = JSON.parse(data.toString());
           this.handlePluginResponse(response);
         } catch (err) {
-          console.error('[bridge] Failed to parse plugin message:', err);
+          logger.bridge.error('Failed to parse plugin message:', err);
         }
       });
 
       ws.on('close', () => {
-        console.error('[bridge] FigJam plugin disconnected');
+        logger.bridge.info('FigJam plugin disconnected');
         if (this.pluginSocket === ws) {
           this.pluginSocket = null;
         }
@@ -69,7 +69,7 @@ export class BridgeServer {
       });
 
       ws.on('error', (err) => {
-        console.error('[bridge] WebSocket error:', err);
+        logger.bridge.error('WebSocket error:', err);
       });
     });
   }
@@ -77,7 +77,7 @@ export class BridgeServer {
   private handlePluginResponse(response: PluginResponse): void {
     const resolver = this.pendingCommands.get(response.id);
     if (!resolver) {
-      console.error(`[bridge] No pending command for id: ${response.id}`);
+      logger.bridge.error(`No pending command for id: ${response.id}`);
       return;
     }
     clearTimeout(resolver.timer);
@@ -92,7 +92,10 @@ export class BridgeServer {
     );
   }
 
-  waitForConnection(timeoutMs: number = 60_000, pollIntervalMs: number = 2_000): Promise<boolean> {
+  waitForConnection(
+    timeoutMs: number = CONNECTION_DEFAULTS.timeoutMs,
+    pollIntervalMs: number = CONNECTION_DEFAULTS.pollIntervalMs,
+  ): Promise<boolean> {
     return new Promise((resolve) => {
       if (this.isPluginConnected()) {
         resolve(true);
@@ -160,7 +163,7 @@ export class BridgeServer {
       this.server.listen(this.port, () => {
         this.server.removeListener('error', () => {});
         this.wss.removeListener('error', onWssError);
-        console.error(`[bridge] Bridge server listening on port ${this.port}`);
+        logger.bridge.info(`Bridge server listening on port ${this.port}`);
         resolve();
       });
     });

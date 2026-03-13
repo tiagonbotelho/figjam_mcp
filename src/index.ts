@@ -4,8 +4,9 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod';
 import { exec, execSync } from 'child_process';
 import { BridgeServer } from './bridge.js';
-
-const BRIDGE_PORT = parseInt(process.env.BRIDGE_PORT || '3000', 10);
+import { BRIDGE_PORT, ELEMENT_DEFAULTS } from './config.js';
+import { logger } from './logger.js';
+import { formatToolResponse } from './tool-helpers.js';
 
 const bridge = new BridgeServer(BRIDGE_PORT);
 
@@ -224,15 +225,15 @@ server.tool(
     if (hasDesktopApp) {
       try {
         createFigJamInDesktopApp(name);
-        console.error(`[mcp] Created new FigJam board in Figma desktop app${name ? `: ${name}` : ''}`);
+        logger.mcp.info(`Created new FigJam board in Figma desktop app${name ? `: ${name}` : ''}`);
       } catch (err) {
-        console.error('[mcp] AppleScript failed, falling back to browser:', err);
+        logger.mcp.error('AppleScript failed, falling back to browser:', err);
         exec('open "https://figjam.new"');
       }
     } else {
       const openCmd = process.platform === 'win32' ? 'start' : 'xdg-open';
       exec(`${openCmd} "https://figjam.new"`);
-      console.error('[mcp] Opened figjam.new in browser (Figma Desktop not found)');
+      logger.mcp.info('Opened figjam.new in browser (Figma Desktop not found)');
     }
 
     const timeout = (timeoutSeconds ?? 60) * 1000;
@@ -284,13 +285,11 @@ server.tool(
       .describe('Sticky note color. Prefer LIGHT_* variants for readability (default: LIGHT_YELLOW)'),
   },
   async ({ text, x, y, wide, color }) => {
+    const { position, sticky } = ELEMENT_DEFAULTS;
     const res = await bridge.sendCommand('create_sticky', {
-      text, x: x ?? 0, y: y ?? 0, wide: wide ?? false, color: color ?? 'LIGHT_YELLOW',
+      text, x: x ?? position.x, y: y ?? position.y, wide: wide ?? sticky.wide, color: color ?? sticky.color,
     });
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -320,19 +319,17 @@ server.tool(
       .describe('Shape fill color. ALWAYS prefer LIGHT_* variants for readable dark text on light background (default: LIGHT_BLUE)'),
   },
   async ({ shapeType, text, x, y, width, height, color }) => {
+    const { shape, position } = ELEMENT_DEFAULTS;
     const res = await bridge.sendCommand('create_shape', {
-      shapeType: shapeType ?? 'ROUNDED_RECTANGLE',
+      shapeType: shapeType ?? shape.shapeType,
       text: text ?? '',
-      x: x ?? 0,
-      y: y ?? 0,
-      width: width ?? 200,
-      height: height ?? 100,
-      color: color ?? 'LIGHT_BLUE',
+      x: x ?? position.x,
+      y: y ?? position.y,
+      width: width ?? shape.width,
+      height: height ?? shape.height,
+      color: color ?? shape.color,
     });
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -349,16 +346,14 @@ server.tool(
     fontSize: z.number().optional().describe('Font size (default: 16)'),
   },
   async ({ text, x, y, fontSize }) => {
+    const { position, text: textDefaults } = ELEMENT_DEFAULTS;
     const res = await bridge.sendCommand('create_text', {
       text,
-      x: x ?? 0,
-      y: y ?? 0,
-      fontSize: fontSize ?? 16,
+      x: x ?? position.x,
+      y: y ?? position.y,
+      fontSize: fontSize ?? textDefaults.fontSize,
     });
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -382,10 +377,7 @@ server.tool(
       label,
       strokeColor,
     });
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -406,17 +398,15 @@ server.tool(
     height: z.number().optional().describe('Height in px (default: 400). Make large enough to contain child elements with padding'),
   },
   async ({ name, x, y, width, height }) => {
+    const { section, position } = ELEMENT_DEFAULTS;
     const res = await bridge.sendCommand('create_section', {
       name,
-      x: x ?? 0,
-      y: y ?? 0,
-      width: width ?? 600,
-      height: height ?? 400,
+      x: x ?? position.x,
+      y: y ?? position.y,
+      width: width ?? section.width,
+      height: height ?? section.height,
     });
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -438,10 +428,7 @@ server.tool(
   },
   async ({ id, ...updates }) => {
     const res = await bridge.sendCommand('update_element', { id, ...updates });
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -454,10 +441,7 @@ server.tool(
   },
   async ({ id }) => {
     const res = await bridge.sendCommand('delete_element', { id });
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -473,10 +457,7 @@ server.tool(
   },
   async ({ type }) => {
     const res = await bridge.sendCommand('query_elements', { type: type ?? 'ALL' });
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -490,10 +471,7 @@ server.tool(
   {},
   async () => {
     const res = await bridge.sendCommand('validate_layout', {});
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -545,28 +523,28 @@ server.tool(
           case 'section':
             res = await bridge.sendCommand('create_section', {
               name: spec.name ?? 'Section',
-              x: spec.x ?? 0, y: spec.y ?? 0,
-              width: spec.width ?? 600, height: spec.height ?? 400,
+              x: spec.x ?? ELEMENT_DEFAULTS.position.x, y: spec.y ?? ELEMENT_DEFAULTS.position.y,
+              width: spec.width ?? ELEMENT_DEFAULTS.section.width, height: spec.height ?? ELEMENT_DEFAULTS.section.height,
             });
             break;
           case 'shape':
             res = await bridge.sendCommand('create_shape', {
-              shapeType: spec.shapeType ?? 'ROUNDED_RECTANGLE',
-              text: spec.text ?? '', x: spec.x ?? 0, y: spec.y ?? 0,
-              width: spec.width ?? 200, height: spec.height ?? 100,
-              color: spec.color ?? 'LIGHT_BLUE',
+              shapeType: spec.shapeType ?? ELEMENT_DEFAULTS.shape.shapeType,
+              text: spec.text ?? '', x: spec.x ?? ELEMENT_DEFAULTS.position.x, y: spec.y ?? ELEMENT_DEFAULTS.position.y,
+              width: spec.width ?? ELEMENT_DEFAULTS.shape.width, height: spec.height ?? ELEMENT_DEFAULTS.shape.height,
+              color: spec.color ?? ELEMENT_DEFAULTS.shape.color,
             });
             break;
           case 'sticky':
             res = await bridge.sendCommand('create_sticky', {
-              text: spec.text ?? '', x: spec.x ?? 0, y: spec.y ?? 0,
-              wide: spec.wide ?? false, color: spec.color ?? 'LIGHT_YELLOW',
+              text: spec.text ?? '', x: spec.x ?? ELEMENT_DEFAULTS.position.x, y: spec.y ?? ELEMENT_DEFAULTS.position.y,
+              wide: spec.wide ?? ELEMENT_DEFAULTS.sticky.wide, color: spec.color ?? ELEMENT_DEFAULTS.sticky.color,
             });
             break;
           case 'text':
             res = await bridge.sendCommand('create_text', {
-              text: spec.text ?? '', x: spec.x ?? 0, y: spec.y ?? 0,
-              fontSize: spec.fontSize ?? 16,
+              text: spec.text ?? '', x: spec.x ?? ELEMENT_DEFAULTS.position.x, y: spec.y ?? ELEMENT_DEFAULTS.position.y,
+              fontSize: spec.fontSize ?? ELEMENT_DEFAULTS.text.fontSize,
             });
             break;
           case 'connector':
@@ -610,10 +588,7 @@ server.tool(
   },
   async ({ elementIds, alignment }) => {
     const res = await bridge.sendCommand('align_elements', { elementIds, alignment });
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -632,10 +607,7 @@ server.tool(
   },
   async ({ elementIds, direction, spacing }) => {
     const res = await bridge.sendCommand('distribute_elements', { elementIds, direction, spacing });
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -646,10 +618,7 @@ server.tool(
   {},
   async () => {
     const res = await bridge.sendCommand('clear_board', {});
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -660,10 +629,7 @@ server.tool(
   {},
   async () => {
     const res = await bridge.sendCommand('get_board_info', {});
-    return {
-      content: [{ type: 'text' as const, text: res.success ? JSON.stringify(res.data) : `Error: ${res.error}` }],
-      isError: !res.success,
-    };
+    return formatToolResponse(res);
   }
 );
 
@@ -672,10 +638,10 @@ async function main() {
   await bridge.start();
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error('[mcp] FigJam MCP server running (stdio)');
+  logger.mcp.info('FigJam MCP server running (stdio)');
 }
 
 main().catch((err) => {
-  console.error('[mcp] Fatal error:', err);
+  logger.mcp.error('Fatal error:', err);
   process.exit(1);
 });
