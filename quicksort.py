@@ -1,4 +1,15 @@
 def quicksort(arr: list[int]) -> list[int]:
+    """Sort a list of integers using the quicksort algorithm.
+
+    Selects the middle element as the pivot, then recursively sorts
+    the sub-lists of elements less than and greater than the pivot.
+
+    Args:
+        arr: The list of integers to sort.
+
+    Returns:
+        A new sorted list in ascending order.
+    """
     if len(arr) <= 1:
         return arr
 

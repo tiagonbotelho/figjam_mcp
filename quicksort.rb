@@ -1,3 +1,10 @@
+# Sorts an array of integers using the quicksort algorithm.
+#
+# Selects the middle element as the pivot, then recursively sorts
+# the sub-arrays of elements less than and greater than the pivot.
+#
+# @param arr [Array<Integer>] the array to sort
+# @return [Array<Integer>] a new sorted array in ascending order
 def quicksort(arr)
   return arr if arr.length <= 1
 
