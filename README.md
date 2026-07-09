@@ -1,6 +1,24 @@
 # FigJam MCP Server
 
-An MCP server that enables AI agents to manipulate a live FigJam canvas in real time via a companion Figma plugin.
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Node.js >= 18](https://img.shields.io/badge/node-%3E%3D18-brightgreen)
+
+An MCP (Model Context Protocol) server that enables AI agents to manipulate a live FigJam canvas in real time via a companion Figma plugin. Create stickies, shapes, connectors, sections, and more — all from your AI agent.
+
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [MCP Tools](#mcp-tools)
+- [MCP Resources & Prompts](#mcp-resources--prompts)
+- [Environment Variables](#environment-variables)
+- [MCP Client Configuration](#mcp-client-configuration)
+- [How It Works](#how-it-works)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Architecture
 
@@ -176,6 +194,20 @@ npm run build:plugin  # Build plugin only
 ```bash
 node test/integration.mjs   # Run integration tests
 ```
+
+## Contributing
+
+Contributions are welcome! Here's how to get started:
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b my-feature`
+3. Make your changes and ensure tests pass: `node test/integration.mjs`
+4. Run type-check: `npm run type-check`
+5. Commit your changes: `git commit -m "feat: add my feature"`
+6. Push to your fork: `git push origin my-feature`
+7. Open a Pull Request
+
+Please keep PRs focused — one feature or fix per PR. For large changes, open an issue first to discuss the approach.
 
 ## License
 
