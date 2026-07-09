@@ -192,6 +192,24 @@ distribute_elements auto-resizes parent sections, but verify with validate_layou
   }),
 );
 
+// ── MCP Prompt: write_poem ────────────────────────────────────────────
+server.prompt(
+  'write_poem',
+  'Generate a short poem',
+  {
+    topic: z.string().optional().describe('Optional poem topic'),
+  },
+  ({ topic }) => ({
+    messages: [{
+      role: 'user',
+      content: {
+        type: 'text',
+        text: topic ? `Write me a poem about: ${topic}` : 'Write me a poem',
+      },
+    }],
+  }),
+);
+
 // ── Tool: connect_figjam ─────────────────────────────────────────────
 server.tool(
   'connect_figjam',
