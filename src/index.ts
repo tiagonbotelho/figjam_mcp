@@ -202,9 +202,10 @@ server.tool(
   async ({ topic }) => {
     const trimmedTopic = topic?.trim();
     const poemTopic = (trimmedTopic && trimmedTopic.length > 0 ? trimmedTopic : 'nature').toLowerCase();
+    const poemTopicCapitalized = poemTopic.charAt(0).toUpperCase() + poemTopic.slice(1);
     const templates = [
       `In quiet light, the song of ${poemTopic} grows,\nThrough every turning hour, ${poemTopic} softly flows.\nThe day leans close, the restless edges blur,\nAnd hope takes root in all that briefly stirs.`,
-      `${poemTopic} wakes where morning paints the air,\nA silver hum of wonder everywhere.\nWhat felt like stone begins again to bloom,\nAnd gentle fire brightens every room.`,
+      `${poemTopicCapitalized} wakes where morning paints the air,\nA silver hum of wonder everywhere.\nWhat felt like stone begins again to bloom,\nAnd gentle fire brightens every room.`,
       `Beneath the dusk, ${poemTopic} finds its flame,\nSmall stars of thought that whisper out its name.\nThe night grows kind, the heavy shadows part,\nAnd quiet music gathers in the heart.`,
     ];
     const seed = Array.from(poemTopic).reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
