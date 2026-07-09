@@ -46,9 +46,9 @@ function createChildEnv(extraEnv = {}) {
 function testCreateChildEnv() {
   console.log('\nTest: Child env helper merges and filters values');
 
-  const env = createChildEnv({ FIGJAM_TEST_VALUE: 'ok', FIGJAM_UNDEFINED: undefined });
-  assert(env.FIGJAM_TEST_VALUE === 'ok', 'createChildEnv merges additional environment variables');
-  assert(!('FIGJAM_UNDEFINED' in env), 'createChildEnv filters undefined values');
+  const env = createChildEnv({ TEST_VALUE: 'ok', TEST_UNDEFINED: undefined });
+  assert(env.TEST_VALUE === 'ok', 'createChildEnv merges additional environment variables');
+  assert(!('TEST_UNDEFINED' in env), 'createChildEnv filters undefined values');
 }
 
 async function testPoemPrompt() {
