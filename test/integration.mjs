@@ -6,7 +6,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 const BRIDGE_PORT = 3999; // Use a different port for testing
-const POEM_PROMPT_BRIDGE_PORT = 3998; // Separate port so the stdio server can run alongside the bridge test
+const MCP_STDIO_PORT = 3998; // Separate bridge port for the spawned stdio server so it can run alongside the bridge test
 process.env.BRIDGE_PORT = String(BRIDGE_PORT);
 
 const { BridgeServer } = await import('../dist/bridge.js');
@@ -58,7 +58,9 @@ async function testPoemPrompt() {
     command: process.execPath,
     args: ['./dist/index.js'],
     cwd: process.cwd(),
-    env: createChildEnv({ BRIDGE_PORT: String(POEM_PROMPT_BRIDGE_PORT) }),
+    // The stdio server also starts its embedded bridge server on boot, so it needs
+    // a different bridge port from the main integration test process.
+    env: createChildEnv({ BRIDGE_PORT: String(MCP_STDIO_PORT) }),
     stderr: 'pipe',
   });
   const client = new Client({ name: 'figjam-mcp-test-client', version: '1.0.0' });
