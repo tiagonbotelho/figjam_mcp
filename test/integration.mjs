@@ -2,6 +2,8 @@
 // Run with: node test/integration.mjs
 
 import { WebSocket } from 'ws';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 const BRIDGE_PORT = 3999; // Use a different port for testing
 process.env.BRIDGE_PORT = String(BRIDGE_PORT);
@@ -32,6 +34,41 @@ async function connectMockPlugin() {
     ws.on('open', () => resolve(ws));
     ws.on('error', reject);
   });
+}
+
+function createChildEnv(extraEnv = {}) {
+  return Object.fromEntries(
+    Object.entries({ ...process.env, ...extraEnv }).filter(([, value]) => value !== undefined)
+  );
+}
+
+async function testPoemPrompt() {
+  console.log('\nTest: MCP poem prompt is available');
+
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: ['./dist/index.js'],
+    cwd: process.cwd(),
+    env: createChildEnv({ BRIDGE_PORT: '3998' }),
+    stderr: 'pipe',
+  });
+  const client = new Client({ name: 'figjam-mcp-test-client', version: '1.0.0' });
+
+  try {
+    await client.connect(transport);
+
+    const prompts = await client.listPrompts();
+    const poemPrompt = prompts.prompts.find((prompt) => prompt.name === 'write_poem');
+    assert(!!poemPrompt, 'write_poem prompt is listed');
+
+    const defaultPrompt = await client.getPrompt({ name: 'write_poem' });
+    const defaultMessage = defaultPrompt.messages[0];
+    assert(defaultMessage?.role === 'user', 'write_poem prompt returns a user message');
+    assert(defaultMessage?.content.type === 'text', 'write_poem prompt returns text content');
+    assert(defaultMessage?.content.text === 'Write an original poem.', 'write_poem prompt has the default poem request');
+  } finally {
+    await transport.close();
+  }
 }
 
 async function main() {
@@ -125,6 +162,9 @@ async function main() {
   const health2Res = await fetch(`http://localhost:${BRIDGE_PORT}/health`);
   const health2 = await health2Res.json();
   assert(health2.pluginConnected === false, 'Plugin shows disconnected');
+
+  // 11. MCP prompt exposure
+  await testPoemPrompt();
 
   // Cleanup
   await bridge.stop();

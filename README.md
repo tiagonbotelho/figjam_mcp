@@ -70,6 +70,7 @@ See [MCP Client Configuration](#mcp-client-configuration) below.
 | Type | Name | Description |
 |------|------|-------------|
 | Resource | `figjam://schema` | Element reference — shape types, color palette, sizes, layout rules |
+| Prompt | `write_poem` | Generate an original poem |
 | Prompt | `draw_diagram` | Step-by-step workflow for creating well-structured diagrams |
 
 ## Environment Variables

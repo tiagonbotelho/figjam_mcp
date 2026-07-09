@@ -124,6 +124,20 @@ server.resource(
 
 // ── MCP Prompt: draw_diagram ─────────────────────────────────────────
 server.prompt(
+  'write_poem',
+  'Write an original poem',
+  () => ({
+    messages: [{
+      role: 'user',
+      content: {
+        type: 'text',
+        text: 'Write an original poem.',
+      },
+    }],
+  }),
+);
+
+server.prompt(
   'draw_diagram',
   'Step-by-step guide for creating a well-structured FigJam diagram',
   { topic: z.string().describe('What the diagram should depict (e.g. "microservices architecture", "CI/CD pipeline")') },
