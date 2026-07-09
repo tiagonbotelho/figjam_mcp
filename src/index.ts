@@ -192,7 +192,7 @@ distribute_elements auto-resizes parent sections, but verify with validate_layou
   }),
 );
 
-// ── MCP Prompt: write_poem ────────────────────────────────────────────
+// ── MCP Prompt: write_poem ─────────────────────────────────────────────
 server.prompt(
   'write_poem',
   'Generate a short poem',
