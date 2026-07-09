@@ -43,6 +43,14 @@ function createChildEnv(extraEnv = {}) {
   );
 }
 
+function testCreateChildEnv() {
+  console.log('\nTest: Child env helper merges and filters values');
+
+  const env = createChildEnv({ FIGJAM_TEST_VALUE: 'ok', FIGJAM_UNDEFINED: undefined });
+  assert(env.FIGJAM_TEST_VALUE === 'ok', 'createChildEnv merges additional environment variables');
+  assert(!('FIGJAM_UNDEFINED' in env), 'createChildEnv filters undefined values');
+}
+
 async function testPoemPrompt() {
   console.log('\nTest: MCP poem prompt is available');
 
@@ -165,7 +173,10 @@ async function main() {
   const health2 = await health2Res.json();
   assert(health2.pluginConnected === false, 'Plugin shows disconnected');
 
-  // 11. MCP prompt exposure
+  // 11. Test helper behavior
+  testCreateChildEnv();
+
+  // 12. MCP prompt exposure
   await testPoemPrompt();
 
   // Cleanup
