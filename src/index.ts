@@ -204,7 +204,7 @@ server.tool(
     return {
       content: [{
         type: 'text' as const,
-        text: `In quiet light, the song of ${poemTopic} grows,\nA soft and steady breath in everything that glows.\nThe day leans close, the restless edges blur,\nAnd hope takes root in all that briefly stirs.`,
+        text: `In quiet light, the song of ${poemTopic} grows,\nThrough every turning hour, ${poemTopic} softly flows.\nThe day leans close, the restless edges blur,\nAnd hope takes root in all that briefly stirs.`,
       }],
     };
   }
