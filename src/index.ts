@@ -122,6 +122,21 @@ server.resource(
   }),
 );
 
+// ── MCP Prompt: write_poem ───────────────────────────────────────────
+server.prompt(
+  'write_poem',
+  'Write an original poem',
+  () => ({
+    messages: [{
+      role: 'user',
+      content: {
+        type: 'text',
+        text: 'Write an original poem.',
+      },
+    }],
+  }),
+);
+
 // ── MCP Prompt: draw_diagram ─────────────────────────────────────────
 server.prompt(
   'draw_diagram',
