@@ -192,6 +192,24 @@ distribute_elements auto-resizes parent sections, but verify with validate_layou
   }),
 );
 
+// ── Tool: write_poem ──────────────────────────────────────────────────
+server.tool(
+  'write_poem',
+  'Write a short original poem.',
+  {
+    topic: z.string().optional().describe('Optional poem topic (default: nature)'),
+  },
+  async ({ topic }) => {
+    const poemTopic = (topic ?? 'nature').trim() || 'nature';
+    return {
+      content: [{
+        type: 'text' as const,
+        text: `In quiet light, ${poemTopic} starts to sing,\nA soft and steady breath in everything.\nThe day leans close, the restless edges blur,\nAnd hope takes root in all that briefly stirs.`,
+      }],
+    };
+  }
+);
+
 // ── Tool: connect_figjam ─────────────────────────────────────────────
 server.tool(
   'connect_figjam',

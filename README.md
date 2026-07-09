@@ -49,6 +49,7 @@ See [MCP Client Configuration](#mcp-client-configuration) below.
 | Tool | Description |
 |------|-------------|
 | `connect_figjam` | Open a new FigJam board and wait for the plugin to connect |
+| `write_poem` | Write a short original poem, optionally about a provided topic |
 | `create_sticky` | Create a sticky note (text, position, color) |
 | `create_shape` | Create a shape with text (type, position, size, color) |
 | `create_text` | Create a text node (text, position, font size) |
