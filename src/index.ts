@@ -122,7 +122,7 @@ server.resource(
   }),
 );
 
-// ── MCP Prompt: draw_diagram ─────────────────────────────────────────
+// ── MCP Prompt: write_poem ───────────────────────────────────────────
 server.prompt(
   'write_poem',
   'Write an original poem',
@@ -137,6 +137,7 @@ server.prompt(
   }),
 );
 
+// ── MCP Prompt: draw_diagram ─────────────────────────────────────────
 server.prompt(
   'draw_diagram',
   'Step-by-step guide for creating a well-structured FigJam diagram',
